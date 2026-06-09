@@ -417,7 +417,7 @@ async function sendBirthdayEmailsForToday() {
     const dateString = today.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
     const subjectNames = todayBirthdays.map(e => e.name).join(' & ');
 
-    let emailText = `Hello Admin,\n\nHappy Birthday to the following staff member(s) today (${dateString}):\n\n`;
+    let emailText = `Hi All,\n\nHappy Birthday to the following staff member(s) today (${dateString}):\n\n`;
     todayBirthdays.forEach((emp, i) => {
       emailText += `[${i + 1}] Name       : ${emp.name}\n`;
       emailText += `    Department : ${emp.department || 'N/A'}\n`;
@@ -443,7 +443,7 @@ async function sendBirthdayEmailsForToday() {
 
 // ─── Cron Job: Run every day at 08:00 AM server time ───────────────────────
 // This node-cron will run locally, but for Vercel we use vercel.json crons instead
-cron.schedule('08 20 * * *', () => {
+cron.schedule('25 09 * * *', () => {
   console.log('[Birthday Bot] Running daily birthday check...');
   sendBirthdayEmailsForToday();
 }, {
