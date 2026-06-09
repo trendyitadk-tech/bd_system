@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:push": "prisma db push",
-    "postinstall": "prisma generate"
+    "postinstall": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
