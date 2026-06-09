@@ -578,27 +578,13 @@ function App() {
             <form onSubmit={handleAddEmployee} className="flex-col gap-4">
               <input type="text" placeholder="Full Name" required value={newEmp.name} onChange={e => setNewEmp({ ...newEmp, name: e.target.value })} style={{ marginBottom: '1rem' }} />
               <input type="email" placeholder="Email Address" value={newEmp.email} onChange={e => setNewEmp({ ...newEmp, email: e.target.value })} style={{ marginBottom: '1rem' }} />
+              <input type="text" placeholder="Department" value={newEmp.department} onChange={e => setNewEmp({ ...newEmp, department: e.target.value })} style={{ marginBottom: '1rem' }} />
               <input type="text" placeholder="Phone Number" value={newEmp.phone} onChange={e => setNewEmp({ ...newEmp, phone: e.target.value })} style={{ marginBottom: '1rem' }} />
               <input type="date" required value={newEmp.dateOfBirth} onChange={e => setNewEmp({ ...newEmp, dateOfBirth: e.target.value })} style={{ marginBottom: '1rem' }} />
 
-              <div className="mb-4">
-                <label className="block mb-2 font-medium">Permissions (Select pages user can access):</label>
-                <div className="flex flex-col gap-2">
-                  {['dashboard','employees','reports','users','settings'].map(tab => (
-                    <label key={tab} className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox mr-2"
-                        checked={newUser.permissions.includes(tab)}
-                        onChange={e => {
-                          const perms = e.target.checked ? [...newUser.permissions, tab] : newUser.permissions.filter(p => p !== tab);
-                          setNewUser({ ...newUser, permissions: perms });
-                        }}
-                      />
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </label>
-                  ))}
-                </div>
+              <div className="flex gap-4 justify-between" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Employee</button>
               </div>
             </form>
           </div>
