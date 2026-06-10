@@ -21,7 +21,7 @@ function App() {
   const [adminEmailsList, setAdminEmailsList] = useState([]);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   
-  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('currentUser')) || null);
+  const [currentUser, setCurrentUser] = useState(JSON.parse(sessionStorage.getItem('currentUser')) || null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -53,8 +53,47 @@ function App() {
     } else {
       document.body.classList.remove('dark-theme');
     }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  // Session inactivity timeout logic (15 minutes)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Set initial activity time
+    sessionStorage.setItem('lastActivityTime', Date.now().toString());
+
+    // Update activity time on user interaction (throttled to avoid performance issues)
+    let throttleTimer;
+    const updateActivity = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        sessionStorage.setItem('lastActivityTime', Date.now().toString());
+        throttleTimer = null;
+      }, 5000); // Only update at most once every 5 seconds
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, updateActivity));
+
+    const checkSession = () => {
+      const lastActivity = parseInt(sessionStorage.getItem('lastActivityTime') || Date.now().toString());
+      const sessionDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
+      const timeElapsed = Date.now() - lastActivity;
+      
+      if (timeElapsed >= sessionDuration) {
+        handleLogout();
+        alert('Your session has expired due to 15 minutes of inactivity. Please log in again.');
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkSession, 60000);
+
+    return () => {
+      clearInterval(interval);
+      if (throttleTimer) clearTimeout(throttleTimer);
+      events.forEach(event => window.removeEventListener(event, updateActivity));
+    };
+  }, [currentUser]);
+
 
   const fetchData = async () => {
     try {
@@ -83,7 +122,8 @@ function App() {
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { username: loginUsername, password: loginPassword });
       setCurrentUser(res.data);
-      localStorage.setItem('currentUser', JSON.stringify(res.data));
+      sessionStorage.setItem('currentUser', JSON.stringify(res.data));
+      sessionStorage.setItem('lastActivityTime', Date.now().toString());
       setLoginError('');
     } catch (err) {
       console.log(`Login failed for user ${loginUsername}`);
@@ -93,7 +133,8 @@ function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('lastActivityTime');
   };
 
   const handleAddUser = async (e) => {
@@ -685,7 +726,7 @@ function App() {
                   // refresh user info
                   const res = await axios.post(`${API_URL}/auth/login`, { username: currentUser.username, password: newPassword });
                   setCurrentUser(res.data);
-                  localStorage.setItem('currentUser', JSON.stringify(res.data));
+                  sessionStorage.setItem('currentUser', JSON.stringify(res.data));
                   setNewPassword('');
                   setShowPwdModal(false);
                   alert('Password updated');
