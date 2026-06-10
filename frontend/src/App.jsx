@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   LayoutDashboard, Users, Calendar as CalendarIcon, 
   BarChart, Settings, Search, Bell, UserCircle, UploadCloud, TestTube,
-  Trash2, Plus, Edit, Download
+  Trash2, Plus, Edit, Download, Mail
 } from 'lucide-react';
 import { 
   BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -18,6 +18,7 @@ function App() {
   const [employees, setEmployees] = useState([]);
   const [birthdays, setBirthdays] = useState({ thisMonth: [], upcoming: [] });
   const [systemUsers, setSystemUsers] = useState([]);
+  const [adminEmailsList, setAdminEmailsList] = useState([]);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   
   const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('currentUser')) || null);
@@ -35,6 +36,9 @@ function App() {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [editSystemUser, setEditSystemUser] = useState({ id: null, username: '', email: '', role: 'user', password: '', permissions: [] });
   const [uploadFile, setUploadFile] = useState(null);
+  
+  const [isAdminEmailModalOpen, setIsAdminEmailModalOpen] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
   
   const [newEmp, setNewEmp] = useState({ name: '', email: '', phone: '', dateOfBirth: '', department: '' });
   const [editEmp, setEditEmp] = useState({ id: null, name: '', email: '', phone: '', dateOfBirth: '', department: '' });
@@ -54,14 +58,16 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [empRes, bdayRes, usersRes] = await Promise.all([
+      const [empRes, bdayRes, usersRes, adminEmailsRes] = await Promise.all([
         axios.get(`${API_URL}/employees`),
         axios.get(`${API_URL}/birthdays`),
-        axios.get(`${API_URL}/users`).catch(() => ({ data: [] }))
+        axios.get(`${API_URL}/users`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/admin-emails`).catch(() => ({ data: [] }))
       ]);
       setEmployees(empRes.data);
       setBirthdays(bdayRes.data);
       setSystemUsers(usersRes.data);
+      setAdminEmailsList(adminEmailsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -136,6 +142,29 @@ function App() {
       alert('User updated successfully');
     } catch (error) {
       alert('Error updating user');
+    }
+  };
+
+  const handleAddAdminEmail = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API_URL}/admin-emails`, { email: newAdminEmail });
+      setIsAdminEmailModalOpen(false);
+      setNewAdminEmail('');
+      fetchData();
+    } catch (error) {
+      alert('Error adding admin email');
+    }
+  };
+
+  const handleDeleteAdminEmail = async (id) => {
+    if (window.confirm('Are you sure you want to delete this email?')) {
+      try {
+        await axios.delete(`${API_URL}/admin-emails/${id}`);
+        fetchData();
+      } catch (error) {
+        alert('Error deleting admin email');
+      }
     }
   };
 
@@ -282,6 +311,11 @@ function App() {
             {currentUser && (currentUser.role === 'admin' || (typeof currentUser.permissions === 'string' ? currentUser.permissions.split(',') : []).includes('reports')) && (
               <button className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
                   <BarChart size={18} /> Reports
+              </button>
+            )}
+            {currentUser && (currentUser.role === 'admin' || (typeof currentUser.permissions === 'string' ? currentUser.permissions.split(',') : []).includes('admin-emails')) && (
+              <button className={`nav-item ${activeTab === 'admin-emails' ? 'active' : ''}`} onClick={() => setActiveTab('admin-emails')}>
+                  <Mail size={18} /> Admin Emails
               </button>
             )}
             {currentUser && (currentUser.role === 'admin' || (typeof currentUser.permissions === 'string' ? currentUser.permissions.split(',') : []).includes('users')) && (
@@ -524,6 +558,54 @@ function App() {
             </div>
           )}
 
+          {/* Admin Emails Tab */}
+          {activeTab === 'admin-emails' && (
+            <div className="card">
+              <div className="flex justify-between items-center mb-6">
+                <h2>Admin Notification Emails ({adminEmailsList.length})</h2>
+                <button className="btn btn-primary" onClick={() => setIsAdminEmailModalOpen(true)}>
+                  <Plus size={16} /> Add Email
+                </button>
+              </div>
+              <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
+                These email addresses will receive the daily birthday notifications.
+              </p>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Email Address</th>
+                      <th>Added On</th>
+                      <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminEmailsList.length === 0 ? (
+                      <tr><td colSpan="3">No admin emails found. Daily emails will fallback to the default .env configuration.</td></tr>
+                    ) : (
+                      adminEmailsList.map(emailObj => (
+                        <tr key={emailObj.id}>
+                          <td style={{ fontWeight: 500 }}>{emailObj.email}</td>
+                          <td>{new Date(emailObj.createdAt).toLocaleDateString()}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px' }}
+                              onClick={() => handleDeleteAdminEmail(emailObj.id)}
+                              title="Delete Admin Email"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Reports Tab */}
           {activeTab === 'reports' && (
             <div className="card">
@@ -616,7 +698,7 @@ function App() {
                 <div className="flex flex-col gap-2 mb-4">
                 <label className="block mb-2 font-medium">Permissions (Select pages user can access):</label>
                 <div className="flex flex-col gap-2">
-                  {['dashboard','employees','reports','users','settings'].map(tab => (
+                  {['dashboard','employees','reports','admin-emails','users','settings'].map(tab => (
                     <label key={tab} className="inline-flex items-center">
                       <input
                         type="checkbox"
@@ -657,7 +739,7 @@ function App() {
               <div className="flex flex-col gap-2 mb-4">
                 <label className="block mb-2 font-medium">Permissions (Select pages user can access):</label>
                 <div className="flex flex-col gap-2">
-                  {['dashboard','employees','reports','users','settings'].map(tab => (
+                  {['dashboard','employees','reports','admin-emails','users','settings'].map(tab => (
                     <label key={tab} className="inline-flex items-center">
                       <input
                         type="checkbox"
@@ -698,7 +780,7 @@ function App() {
               <div className="flex flex-col gap-2 mb-4">
                 <label className="block mb-2 font-medium">Permissions (Select pages user can access):</label>
                 <div className="flex flex-col gap-2">
-                  {['dashboard','employees','reports','users','settings'].map(tab => (
+                  {['dashboard','employees','reports','admin-emails','users','settings'].map(tab => (
                     <label key={tab} className="inline-flex items-center">
                       <input
                         type="checkbox"
@@ -717,6 +799,24 @@ function App() {
               <div className="flex gap-4 justify-between" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsEditUserModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Update User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Admin Email Modal */}
+      {isAdminEmailModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAdminEmailModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 className="mb-4">Add Admin Notification Email</h2>
+            <form onSubmit={handleAddAdminEmail} className="flex-col gap-4">
+               <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>Email Address</label>
+               <input type="email" required value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} style={{ marginBottom: '1rem' }} />
+              
+              <div className="flex gap-4 justify-between" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAdminEmailModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Email</button>
               </div>
             </form>
           </div>

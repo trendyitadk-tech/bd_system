@@ -203,6 +203,41 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// Admin Email Management Routes
+app.get('/api/admin-emails', async (req, res) => {
+  try {
+    const emails = await prisma.adminEmail.findMany();
+    res.json(emails);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch admin emails' });
+  }
+});
+
+app.post('/api/admin-emails', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const newEmail = await prisma.adminEmail.create({
+      data: { email }
+    });
+    res.json(newEmail);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add admin email' });
+  }
+});
+
+app.delete('/api/admin-emails/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.adminEmail.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ message: 'Admin email deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete admin email' });
+  }
+});
+
+
 app.get('/api/birthdays', async (req, res) => {
   try {
     const employees = await prisma.employee.findMany();
@@ -344,8 +379,11 @@ app.post('/api/notify', async (req, res) => {
         });
       }
 
-      // Read admin email from .env, or default to the sender's email
-      const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@company.com';
+      // Fetch all admin emails from the dedicated AdminEmail table
+      const adminUsers = await prisma.adminEmail.findMany();
+      const dbAdminEmails = adminUsers.map(u => u.email).filter(Boolean).join(', ');
+      
+      const adminEmail = dbAdminEmails || process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@company.com';
 
       // Build consolidated email text
       const dateString = new Date(employee.dateOfBirth).toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
@@ -424,7 +462,12 @@ async function sendBirthdayEmailsForToday() {
       return;
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@company.com';
+    // Fetch all admin emails from the dedicated AdminEmail table
+    const adminUsers = await prisma.adminEmail.findMany();
+    const dbAdminEmails = adminUsers.map(u => u.email).filter(Boolean).join(', ');
+    
+    const adminEmail = dbAdminEmails || process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'admin@company.com';
+
     const transporter = await createTransporter();
 
     const dateString = today.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
