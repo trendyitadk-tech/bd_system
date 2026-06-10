@@ -253,8 +253,20 @@ app.post('/api/employees/import', upload.single('file'), async (req, res) => {
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
 
+    const existingEmployees = await prisma.employee.findMany({ select: { name: true } });
+    const existingNames = new Set(existingEmployees.map(e => e.name));
+
     let count = 0;
+    let skipped = 0;
     for (const row of data) {
+      const rowName = String(row.Name || row.name || '').trim();
+      if (!rowName) continue;
+
+      if (existingNames.has(rowName)) {
+        skipped++;
+        continue;
+      }
+
       // Expecting columns: Name, Email, Phone, DateOfBirth, Department
       // Excel dates might come as numbers or strings
       let dob;
@@ -270,17 +282,18 @@ app.post('/api/employees/import', upload.single('file'), async (req, res) => {
 
       await prisma.employee.create({
         data: {
-          name: row.Name || row.name,
+          name: rowName,
           email: row.Email || row.email,
           phone: String(row.Phone || row.phone || ''),
           dateOfBirth: dob,
           department: row.Department || row.department || '',
         }
       });
+      existingNames.add(rowName);
       count++;
     }
 
-    res.json({ message: `Successfully imported ${count} employees`, count });
+    res.json({ message: `Successfully imported ${count} employees. Skipped ${skipped} duplicates.`, count, skipped });
   } catch (error) {
     console.error('Import error:', error);
     res.status(500).json({ error: 'Failed to import data' });

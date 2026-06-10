@@ -7,3 +7,7 @@ npm install
 npm run dev
 
 Bdsystem@123.$
+
+cd frontend
+npm run build
+npx firebase deploy --only hosting
