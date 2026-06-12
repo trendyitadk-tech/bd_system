@@ -36,6 +36,7 @@ function App() {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [editSystemUser, setEditSystemUser] = useState({ id: null, username: '', email: '', role: 'user', password: '', permissions: [] });
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const [isAdminEmailModalOpen, setIsAdminEmailModalOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -53,6 +54,9 @@ function App() {
     } else {
       document.body.classList.remove('dark-theme');
     }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   // Session inactivity timeout logic (15 minutes)
   useEffect(() => {
     if (!currentUser) return;
@@ -215,11 +219,21 @@ function App() {
     const formData = new FormData();
     formData.append('file', uploadFile);
     try {
-      await axios.post(`${API_URL}/employees/import`, formData);
+      await axios.post(`${API_URL}/employees/import`, formData, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
+        }
+      });
       setIsImportModalOpen(false);
+      setUploadProgress(0);
+      setUploadFile(null);
       fetchData();
       alert('Successfully imported data');
     } catch (error) {
+      setUploadProgress(0);
       alert('Error importing data');
     }
   };
@@ -679,14 +693,22 @@ function App() {
 
       {/* Modals */}
       {isImportModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsImportModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => { setIsImportModalOpen(false); setUploadProgress(0); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h2 className="mb-4">Import Staff Data</h2>
             <form onSubmit={handleImport} className="flex-col gap-4">
               <input type="file" accept=".xlsx, .xls" onChange={(e) => setUploadFile(e.target.files[0])} required />
+              {uploadProgress > 0 && (
+                <div style={{ width: '100%', backgroundColor: 'var(--border)', borderRadius: '4px', marginTop: '0.5rem', overflow: 'hidden' }}>
+                  <div style={{ width: `${uploadProgress}%`, backgroundColor: 'var(--primary)', height: '10px', transition: 'width 0.3s' }}></div>
+                  <div style={{ fontSize: '0.75rem', textAlign: 'center', marginTop: '4px', color: 'var(--text-muted)' }}>{uploadProgress}%</div>
+                </div>
+              )}
               <div className="flex gap-4 justify-between" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Import</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setIsImportModalOpen(false); setUploadProgress(0); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={uploadProgress > 0 && uploadProgress < 100}>
+                  {uploadProgress > 0 && uploadProgress < 100 ? 'Importing...' : 'Import'}
+                </button>
               </div>
             </form>
           </div>
